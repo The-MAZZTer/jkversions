@@ -12,3 +12,5 @@ This program does the following (from my memory of it):
 - Dumps the files into %TEMP% and opens the folder so you can do stuff with them.
 
 The project files were made with Visual Studio 2013 Community Edition (which is free) so earlier versions may not be able to read them.
+
+Pre-compiled binary download at http://www.jkhub.net/project/show.php?projid=511&section=downloads
