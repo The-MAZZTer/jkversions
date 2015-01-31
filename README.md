@@ -10,3 +10,5 @@ This program does the following (from my memory of it):
 - Downloads bspatch.exe from jkhub.net and applies the patches.
 - Verifies resources were patched correctly using SHA1 hashes.
 - Dumps the files into %TEMP% and opens the folder so you can do stuff with them.
+
+The project files were made with Visual Studio 2013 Community Edition (which is free) so earlier versions may not be able to read them.
