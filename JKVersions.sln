@@ -1,7 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 11
-Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "JKVersions", "JKVersions\JKVersions.vbproj", "{EE6F29A4-E366-4FFD-A87C-3AB93A1DC269}"
+# Visual Studio 15
+VisualStudioVersion = 15.0.26730.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{F184B08F-C81C-45F6-A57F-5ABD9991F28F}") = "JKVersions.vb", "JKVersions.vb\JKVersions.vb.vbproj", "{EE6F29A4-E366-4FFD-A87C-3AB93A1DC269}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "JKVersions", "JKVersions\JKVersions.csproj", "{B5EC4B25-69C0-4778-94C9-15DBA37C5829}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -13,8 +17,15 @@ Global
 		{EE6F29A4-E366-4FFD-A87C-3AB93A1DC269}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{EE6F29A4-E366-4FFD-A87C-3AB93A1DC269}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{EE6F29A4-E366-4FFD-A87C-3AB93A1DC269}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B5EC4B25-69C0-4778-94C9-15DBA37C5829}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B5EC4B25-69C0-4778-94C9-15DBA37C5829}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B5EC4B25-69C0-4778-94C9-15DBA37C5829}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B5EC4B25-69C0-4778-94C9-15DBA37C5829}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {C1DA11E4-66B7-4956-88FA-2ED6380423C4}
 	EndGlobalSection
 EndGlobal
