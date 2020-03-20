@@ -31,10 +31,9 @@ namespace JKVersions {
 				$"\t- Jedi Knight v1.00{Environment.NewLine}" +
 				$"\t- Jedi Knight v1.01{Environment.NewLine}" +
 				$"\t- Jedi Knight Unofficial Patch v2008-01-16{Environment.NewLine}{Environment.NewLine}" +
-				$"Files are provided by JKHub.net. Thanks to them for hosting files for the JK community." +
-				$"{Environment.NewLine}{Environment.NewLine}" + 
-				$"Special thanks to Nikumubeki for always telling me when JKVersions was broke." +
-				$"{Environment.NewLine}{Environment.NewLine}" +
+				$"Files are provided by JKHub.net. Thanks to them for hosting files for the JK community.{Environment.NewLine}{Environment.NewLine}" +
+				$"Special thanks to Nikumubeki for always telling me when JKVersions was broke.{Environment.NewLine}{Environment.NewLine}" +
+				$"Special thanks to Vertikai for telling me more recently when JKVersions was broke.{Environment.NewLine}{Environment.NewLine}" +
 				$"You must be connected to the internet for this tool to work. Do you want to continue?",
 				"JKVersions", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
 				!= DialogResult.Yes) {
@@ -49,7 +48,7 @@ namespace JKVersions {
 		}
 
 		private static ProgressForm form;
-		private static CancellationTokenSource cancellationSource = new CancellationTokenSource();
+		private static readonly CancellationTokenSource cancellationSource = new CancellationTokenSource();
 
 		private static async void Form_Shown(object sender, EventArgs e) {
 			form.SetProgressText("Extracting tools...");
@@ -60,7 +59,7 @@ namespace JKVersions {
 			await ExtractResourceTools();
 			CheckCancelled();
 
-			form.CompleteItem();	
+			form.CompleteItem();
 			form.SetProgressText("Downloading Jedi Knight 1.01...");
 
 			string archive = Path.Combine(WorkingDir, "jkupd101.exe");
@@ -136,6 +135,7 @@ namespace JKVersions {
 			CheckCancelled();
 
 			DeleteFile(Path.Combine(WorkingDir, "bspatch.exe"));
+			DeleteFile(Path.Combine(WorkingDir, "patch.dat"));
 			try {
 				Directory.Delete(Path.Combine(WorkingDir, "tools"), true);
 			} catch (IOException) {
@@ -186,13 +186,25 @@ namespace JKVersions {
 				}
 			}
 
+			string dest = Path.Combine(gamePath, "JK-Extension.dll");
+			if (File.Exists(dest)) {
+				try {
+					File.Delete(dest);
+				} catch (IOException) {
+				} catch (UnauthorizedAccessException) {
+				}
+			}
+
+			await Task.Run(() => File.Move(Path.Combine(WorkingDir, "JK-Extension.dll"), dest));
+			CheckCancelled();
+
 			string patchPath = Path.Combine(gamePath, "Patches");
 			if (!Directory.Exists(patchPath)) {
 				Directory.CreateDirectory(patchPath);
 			}
 
 			foreach (string file in new[] { "jk.1.01.exe", "jk.1.0.exe", "jk.Unofficial.Patch.2008.01.16.exe" }) {
-				string dest = Path.Combine(patchPath, file);
+				dest = Path.Combine(patchPath, file);
 				if (File.Exists(dest)) {
 					try {
 						File.Delete(dest);
@@ -215,7 +227,7 @@ namespace JKVersions {
 
 				form.SetProgressText("Backing up Jedi Knight Steam game executable...");
 
-				string dest = Path.Combine(patchPath, "jk.Steam.exe");
+				dest = Path.Combine(patchPath, "jk.Steam.exe");
 				await Task.Run(() => File.Copy(path, dest, true));
 			} else {
 				form.SetProgressText("Jedi Knight executable doesn't appear to be Steam version, skipping backup.");
@@ -273,7 +285,7 @@ namespace JKVersions {
 			});
 			await Task.Run(() => process.WaitForExit(), cancellationSource.Token);
 		}
-		
+
 		private static async Task DownloadFile(string url, string dest) {
 			bool retry;
 			do {
@@ -322,7 +334,7 @@ namespace JKVersions {
 			} while (retry);
 		}
 
-		private static SHA1Managed sha1 = new SHA1Managed();
+		private static readonly SHA1Managed sha1 = new SHA1Managed();
 		private static async Task<bool> VerifyHash(string filename, byte[] desiredHash, bool fatalFailure = true) {
 			byte[] actualHash;
 			byte[] buffer;
@@ -334,7 +346,6 @@ namespace JKVersions {
 			CheckCancelled();
 
 			actualHash = sha1.ComputeHash(buffer);
-			buffer = null;
 
 			if (!desiredHash.SequenceEqual(actualHash)) {
 				if (fatalFailure) {
@@ -363,12 +374,8 @@ namespace JKVersions {
 
 			DeleteFile(patchFile);
 		}
-		
-		private static string WorkingDir {
-			get {
-				return Path.Combine(Path.GetTempPath(), "JKVersions");
-			}
-		}
+
+		private static string WorkingDir => Path.Combine(Path.GetTempPath(), "JKVersions");
 
 		private static void CreateWorkingDir() {
 			if (!Directory.Exists(WorkingDir)) {
@@ -397,17 +404,14 @@ namespace JKVersions {
 			Environment.Exit(1);
 		}
 
-		private static void Abort() {
-			cancellationSource.Cancel();
-		}
+		private static void Abort() => cancellationSource.Cancel();
 
 		private static void CurrentDomain_UnhandledException(object sender, UnhandledExceptionEventArgs e) {
 			if (Debugger.IsAttached) {
 				return;
 			}
 
-			Exception ex = e.ExceptionObject as Exception;
-			if (ex == null) {
+			if (!(e.ExceptionObject is Exception ex)) {
 				return;
 			}
 
@@ -421,7 +425,7 @@ namespace JKVersions {
 
 			text = text.Trim(Environment.NewLine.ToCharArray());
 
-			if (MessageBox.Show($"JKVersions encounted an unexpected problem and cannot continue. The problem is:" +
+			if (MessageBox.Show($"JKVersions encountered an unexpected problem and cannot continue. The problem is:" +
 				$"{Environment.NewLine}{Environment.NewLine}{text}{Environment.NewLine}{Environment.NewLine}" +
 				$"If you have a GitHub account, please consider filing a bug report about this issue." +
 				$"Do you want to open this project's new issue form?", "JKVersions", MessageBoxButtons.YesNo,
@@ -433,8 +437,6 @@ namespace JKVersions {
 			Environment.Exit(1);
 		}
 
-		private static string ExceptionToString(this Exception ex) {
-			return $"{ex.Source}: {ex.GetType().FullName}: {ex.Message}{Environment.NewLine}{ex.StackTrace}";
-		}
+		private static string ExceptionToString(this Exception ex) => $"{ex.Source}: {ex.GetType().FullName}: {ex.Message}{Environment.NewLine}{ex.StackTrace}";
 	}
 }

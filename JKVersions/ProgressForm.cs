@@ -12,7 +12,7 @@ namespace JKVersions {
 			this.ProgressBar.Maximum = progressItemCount * PROGRESS_GRANULARITY;
 		}
 
-		private int progressItemCount;
+		private readonly int progressItemCount;
 		private int currentItem = 0;
 		private double currentItemProgress = 0;
 
@@ -22,22 +22,16 @@ namespace JKVersions {
 			this.UpdateProgress();
 		}
 
-		public void SetProgressText(string labelText) {
-			this.StatusLabel.Text = labelText;
-		}
+		public void SetProgressText(string labelText) => this.StatusLabel.Text = labelText;
 
 		public void SetProgress(double amount) {
 			this.currentItemProgress = amount;
 			this.UpdateProgress();
 		}
 
-		private void UpdateProgress() {
-			this.ProgressBar.Value = (int)(((double)this.currentItem + this.currentItemProgress) * PROGRESS_GRANULARITY);
-		}
+		private void UpdateProgress() => this.ProgressBar.Value = (int)((this.currentItem + this.currentItemProgress) * PROGRESS_GRANULARITY);
 
-		public void DisableCancel() {
-			this.Cancel.Enabled = false;
-		}
+		public void DisableCancel() => this.Cancel.Enabled = false;
 
 		public void Abort() {
 			this.DisableCancel();
@@ -56,8 +50,6 @@ namespace JKVersions {
 			base.OnFormClosing(e);
 		}
 
-		private void Cancel_Click(object sender, EventArgs e) {
-			this.Abort();
-		}
+		private void Cancel_Click(object sender, EventArgs e) => this.Abort();
 	}
 }
