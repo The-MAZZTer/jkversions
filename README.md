@@ -16,12 +16,12 @@ This project is a Visual Studio 2019 project, for .NET Framework 4.6.2 (.NET 5 W
 
 New for version 3.0:
 
-- .NET Framework version dependancy bumped to 4.6.2 for .NET Standard 2.0 compatibility
+- .NET Framework version dependency bumped to 4.6.2 for .NET Standard 2.0 compatibility.
 - Added settings file for customizing download URLs and hashes
 - Added form UI for customizing download URLs, which patches get applied, and where the resulting files get placed.
 
 New for version 2.0:
 
 - Recoded in C#!
-- .NET Framework version dependancy bumped to 4.5.2. (It should compile in older versions though.)
+- .NET Framework version dependency bumped to 4.5.2. (It should compile in older versions though.)
 - Now finds your Jedi Knight directory for you and installs the files there! (If you have the Steam version you need to run it once to set it up first.)
