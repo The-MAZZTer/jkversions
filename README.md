@@ -3,7 +3,7 @@ Uses the official LucasArts Star Wars: Dark Forces 2: Jedi Knight 1.0.1 patch to
 
 This program can do the following:
 
-- Downloads the JK 1.0.1 patch (from jkhub.net or a custom location, or use a locally provided file)
+- Downloads the JK 1.0.1 patch (from jkhub.net or a custom location, or use a locally provided file).
 - Extracts 7za.exe (and license) from itself.
 - Extracts the full JK.EXE included in the patch.
 - Downloads two patches (from jkhub.net or a custom location, or using locally provided files) to patch the file to 1.0 and a different patch which applies community-made changes to the game.
