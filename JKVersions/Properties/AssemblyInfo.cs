@@ -7,9 +7,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("JKVersions")]
 [assembly: AssemblyDescription("Downloads JK v1.01 and patches it to 1.0 and the unofficial patch.")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("Dan Bugglin")]
+[assembly: AssemblyCompany("The MAZZTer")]
 [assembly: AssemblyProduct("JKVersions")]
-[assembly: AssemblyCopyright("Copyright © 2009-Present Dan Bugglin. Third-party tools are copyright their respective authors.")]
+[assembly: AssemblyCopyright("Copyright © 2009-Present The MAZZTer. Third-party tools are copyright their respective authors.")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -31,5 +31,5 @@ using System.Runtime.InteropServices;
 // You can specify all the values or you can default the Build and Revision Numbers
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("2.0.1.5")]
-[assembly: AssemblyFileVersion("2.0.1.5")]
+[assembly: AssemblyVersion("3.0.0.6")]
+[assembly: AssemblyFileVersion("3.0.0.6")]

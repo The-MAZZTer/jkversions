@@ -1,18 +1,16 @@
 ﻿using System;
 using System.Windows.Forms;
 
-namespace JKVersions {
+namespace JkVersions {
 	public partial class ProgressForm : Form {
 		private const int PROGRESS_GRANULARITY = 100000;
 
 		public ProgressForm(int progressItemCount) {
 			this.InitializeComponent();
 
-			this.progressItemCount = progressItemCount;
 			this.ProgressBar.Maximum = progressItemCount * PROGRESS_GRANULARITY;
 		}
 
-		private readonly int progressItemCount;
 		private int currentItem = 0;
 		private double currentItemProgress = 0;
 

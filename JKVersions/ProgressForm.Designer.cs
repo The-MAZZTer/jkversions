@@ -1,4 +1,4 @@
-﻿namespace JKVersions {
+﻿namespace JkVersions {
 	partial class ProgressForm {
 		/// <summary>
 		/// Required designer variable.

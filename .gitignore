@@ -3,3 +3,6 @@ JKVersions/bin
 JKVersions/obj
 JKVersions.vb/bin
 JKVersions.vb/obj
+*.user
+/MZZT.Settings/bin
+/MZZT.Settings/obj

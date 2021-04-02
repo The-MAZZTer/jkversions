@@ -1,20 +1,32 @@
-﻿using Microsoft.Win32;
-using MZZT.JKVersions.Properties;
+﻿using JkVersions.Properties;
+using Microsoft.Win32;
 using System;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
+using System.Reflection;
 using System.Security;
 using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
 
-namespace JKVersions {
+namespace JkVersions {
+	// Form
+	// File location jkupd101.exe
+	// Patch to 1.0?
+	// File location patch_1.01_to_1.0.zip
+	// Install JK Unofficial Patch?
+	// File location JKUnofficialPatch_2008-01-16.zip
+	// Output (autodetect jk folder, browse for folder (default temp folder))
+	// Replace Steam EXE
+
 	static class Program {
 		private const int PROGRESS_ITEMS = 15;
 		private const int BUFFER_SIZE = 4 * 1024;
+
+		public static Settings Settings { get; private set; }
 
 		/// <summary>
 		/// The main entry point for the application.
@@ -26,18 +38,23 @@ namespace JKVersions {
 			Application.EnableVisualStyles();
 			Application.SetCompatibleTextRenderingDefault(false);
 
-			if (MessageBox.Show($"This application will reproduce several different versions of the Jedi Knight game " +
-				$"executable using publicly available files. These versions are:{Environment.NewLine}{Environment.NewLine}" +
-				$"\t- Jedi Knight v1.00{Environment.NewLine}" +
-				$"\t- Jedi Knight v1.01{Environment.NewLine}" +
-				$"\t- Jedi Knight Unofficial Patch v2008-01-16{Environment.NewLine}{Environment.NewLine}" +
-				$"Files are provided by JKHub.net. Thanks to them for hosting files for the JK community.{Environment.NewLine}{Environment.NewLine}" +
-				$"Special thanks to Nikumubeki for always telling me when JKVersions was broke.{Environment.NewLine}{Environment.NewLine}" +
-				$"Special thanks to Vertikai for telling me more recently when JKVersions was broke.{Environment.NewLine}{Environment.NewLine}" +
-				$"You must be connected to the internet for this tool to work. Do you want to continue?",
-				"JKVersions", MessageBoxButtons.YesNo, MessageBoxIcon.Question, MessageBoxDefaultButton.Button1)
-				!= DialogResult.Yes) {
+			string settingsPath = Path.Combine(Path.GetDirectoryName(Assembly.GetEntryAssembly().Location), "settings.json");
+			if (File.Exists(settingsPath)) {
+				using (FileStream stream = new FileStream(settingsPath, FileMode.Open, FileAccess.Read, FileShare.Read)) {
+					Settings = Settings.Load(stream, true);
+				}
+			}
+			if (Settings == null) {
+				try {
+					Settings.SaveDefaults(settingsPath);
+				} catch (IOException) {
+				} catch (SecurityException) {
+				}
+				Settings = new Settings();
+			}
 
+			settingsForm = new MainForm();
+			if (settingsForm.ShowDialog() != DialogResult.OK) {
 				return;
 			}
 
@@ -47,203 +64,210 @@ namespace JKVersions {
 			Application.Run(form);
 		}
 
+		private static MainForm settingsForm;
 		private static ProgressForm form;
 		private static readonly CancellationTokenSource cancellationSource = new CancellationTokenSource();
 
 		private static async void Form_Shown(object sender, EventArgs e) {
 			form.SetProgressText("Extracting tools...");
 
-			CreateWorkingDir();
+			CreateTempFolder();
 			CheckCancelled();
 
 			await ExtractResourceTools();
 			CheckCancelled();
-
 			form.CompleteItem();
-			form.SetProgressText("Downloading Jedi Knight 1.01...");
 
-			string archive = Path.Combine(WorkingDir, "jkupd101.exe");
-			await DownloadFile("http://www.jkhub.net/project/get.php?id=1947", archive);
+			string source = settingsForm.Jk101Path;
+			string archive = Path.Combine(TempFolder, "jkupd101.exe");
+			if (Uri.IsWellFormedUriString(source, UriKind.Absolute)) {
+				form.SetProgressText("Downloading Jedi Knight 1.01...");
+
+				await DownloadFile(source, archive);
+			} else {
+				archive = source;
+			}
 			CheckCancelled();
-
 			form.CompleteItem();
+
 			form.SetProgressText("Extracting Jedi Knight 1.01...");
 
-			await ExtractArchiveFiles(archive, new[] { "jk.exe" }, WorkingDir);
+			await ExtractArchiveFiles(archive, new[] { "jk.exe" }, TempFolder);
+			if (source != archive) {
+				DeleteFile(archive);
+			}
 			CheckCancelled();
 
-			DeleteFile(archive);
-			string path = Path.Combine(WorkingDir, "jk.1.01.exe");
+			string destFolder = settingsForm.OutputFolder;
+			if (!Directory.Exists(destFolder)) {
+				Directory.CreateDirectory(destFolder);
+			}
+			string path = Path.Combine(destFolder, "jk.1.01.exe");
 			if (File.Exists(path)) {
 				DeleteFile(path);
 			}
-			File.Move(Path.Combine(WorkingDir, "jk.exe"), path);
+			File.Move(Path.Combine(TempFolder, "jk.exe"), path);
 
-			form.CompleteItem();
-			form.SetProgressText("Verifying Jedi Knight 1.01...");
-
-			await VerifyHash(path, Resources.JK_1_0_1_hash);
 			CheckCancelled();
-
 			form.CompleteItem();
-			form.SetProgressText("Downloading Jedi Knight 1.01 -> 1.0 patch....");
 
-			archive = Path.Combine(WorkingDir, "patch_1.01_to_1.0.zip");
-			await DownloadFile("http://www.jkhub.net/project/get.php?id=975", archive);
-			CheckCancelled();
+			if (settingsForm.VerifyWithHashes) {
+				form.SetProgressText("Verifying Jedi Knight 1.01...");
 
-			form.CompleteItem();
-			form.SetProgressText("Extracting Jedi Knight 1.01 -> 1.0 patch...");
-
-			await ExtractArchiveFiles(archive, new[] { "bspatch.exe", "patch_1.01_to_1.0.dat" }, WorkingDir);
-			CheckCancelled();
-
-			DeleteFile(archive);
-
-			form.CompleteItem();
-			form.SetProgressText("Patching Jedi Knight 1.01 -> 1.0...");
-
-			path = Path.Combine(WorkingDir, "jk.1.0.exe");
-			await PatchFile(Path.Combine(WorkingDir, "jk.1.01.exe"), path, Path.Combine(WorkingDir, "patch_1.01_to_1.0.dat"));
-			CheckCancelled();
-
-			form.CompleteItem();
-			form.SetProgressText("Verifying Jedi Knight 1.0...");
-
-			await VerifyHash(path, Resources.JK_1_0_hash);
-			CheckCancelled();
-
-			form.CompleteItem();
-			form.SetProgressText("Downloading Jedi Knight Unofficial Patch 2008-01-16...");
-
-			archive = Path.Combine(WorkingDir, "JKUnofficialPatch_2008-01-16.zip");
-			await DownloadFile("http://www.jkhub.net/project/get.php?id=1499", archive);
-			CheckCancelled();
-
-			form.CompleteItem();
-			form.SetProgressText("Extracting Jedi Knight Unofficial Patch...");
-
-			await ExtractArchiveFiles(archive, new[] { "bspatch.exe", "JK-Extension.dll", "patch.dat" }, WorkingDir);
-			CheckCancelled();
-			DeleteFile(archive);
-
-			form.CompleteItem();
-			form.SetProgressText("Patching Jedi Knight with Unofficial Patch...");
-
-			path = Path.Combine(WorkingDir, "jk.Unofficial.Patch.2008.01.16.exe");
-			await PatchFile(Path.Combine(WorkingDir, "jk.1.0.exe"), path, Path.Combine(WorkingDir, "patch.dat"));
-			CheckCancelled();
-
-			DeleteFile(Path.Combine(WorkingDir, "bspatch.exe"));
-			DeleteFile(Path.Combine(WorkingDir, "patch.dat"));
-			try {
-				Directory.Delete(Path.Combine(WorkingDir, "tools"), true);
-			} catch (IOException) {
-			} catch (UnauthorizedAccessException) {
+				await VerifyHash(path, Settings.Hashes.Jk1_01);
 			}
 
-			form.CompleteItem();
-			form.SetProgressText("Verifying Jedi Knight Unofficial Patch...");
-
-			await VerifyHash(path, Resources.JK_Unofficial_Patch_2008_01_16_hash);
 			CheckCancelled();
-
 			form.CompleteItem();
-			form.SetProgressText("Locating game folder and installing files...");
 
-			string gamePath = null;
-			while (string.IsNullOrEmpty(gamePath) || !Directory.Exists(gamePath)) {
-				await Task.Run(() => {
-					RegistryKey key = null;
-					try {
-						key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\LucasArts Entertainment Company\jediknight\1.0");
-					} catch (SecurityException) {
-					}
+			source = settingsForm.Jk10Path;
+			if (!string.IsNullOrEmpty(source)) {
+				archive = Path.Combine(TempFolder, "patch_1.01_to_1.0.zip");
+				if (Uri.IsWellFormedUriString(source, UriKind.Absolute)) {
+					form.SetProgressText("Downloading Jedi Knight 1.01 -> 1.0 patch....");
 
-					if (key == null) {
-						try {
-							key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\LucasArts Entertainment Company\jediknight\1.0");
-						} catch (SecurityException) {
-						}
-					}
-
-					if (key != null) {
-						using (key) {
-							gamePath = key.GetValue("install path", null) as string;
-						}
-					}
-				});
+					await DownloadFile(source, archive);
+				} else {
+					archive = source;
+				}
 				CheckCancelled();
+				form.CompleteItem();
 
-				if (string.IsNullOrEmpty(gamePath) || !Directory.Exists(gamePath)) {
-					if (MessageBox.Show("Could not locate the Jedi Knight game folder. If you are using the Steam version you must run it at least once to finish installing the game. You can do this now and press Retry, or press Cancel to perform the file installation yourself.",
-						"JKVersions", MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning, MessageBoxDefaultButton.Button1) == DialogResult.Cancel) {
+				form.SetProgressText("Extracting Jedi Knight 1.01 -> 1.0 patch...");
 
-						Process.Start(WorkingDir);
-						Application.Exit();
-						return;
+				await ExtractArchiveFiles(archive, new[] { "bspatch.exe", "patch_1.01_to_1.0.dat" }, TempFolder);
+				if (source != archive) {
+					DeleteFile(archive);
+				}
+
+				CheckCancelled();
+				form.CompleteItem();
+
+				form.SetProgressText("Patching Jedi Knight 1.01 -> 1.0...");
+
+				path = Path.Combine(destFolder, "jk.1.0.exe");
+				await PatchFile(Path.Combine(destFolder, "jk.1.01.exe"), path, Path.Combine(TempFolder, "patch_1.01_to_1.0.dat"));
+
+				CheckCancelled();
+				form.CompleteItem();
+
+				if (settingsForm.VerifyWithHashes) {
+					form.SetProgressText("Verifying Jedi Knight 1.0...");
+
+					await VerifyHash(path, Settings.Hashes.Jk1_0);
+				}
+
+				CheckCancelled();
+				form.CompleteItem();
+
+				source = settingsForm.JkUnofficialPatchPath;
+				if (!string.IsNullOrEmpty(source)) {
+					archive = Path.Combine(TempFolder, "JKUnofficialPatch_2008-01-16.zip");
+					if (Uri.IsWellFormedUriString(source, UriKind.Absolute)) {
+						form.SetProgressText("Downloading Jedi Knight Unofficial Patch 2008-01-16...");
+
+						await DownloadFile(source, archive);
+					} else {
+						archive = source;
 					}
+					CheckCancelled();
+					form.CompleteItem();
+
+					form.SetProgressText("Extracting Jedi Knight Unofficial Patch...");
+
+					await ExtractArchiveFiles(archive, new[] { "bspatch.exe", "JK-Extension.dll", "patch.dat" }, TempFolder);
+					if (source != archive) {
+						DeleteFile(archive);
+					}
+
+					CheckCancelled();
+					form.CompleteItem();
+
+					form.SetProgressText("Patching Jedi Knight with Unofficial Patch...");
+
+					path = Path.Combine(destFolder, "jk.Unofficial.Patch.2008.01.16.exe");
+					await PatchFile(Path.Combine(destFolder, "jk.1.0.exe"), path, Path.Combine(TempFolder, "patch.dat"));
+
+					DeleteFile(Path.Combine(TempFolder, "bspatch.exe"));
+					DeleteFile(Path.Combine(TempFolder, "patch.dat"));
+					try {
+						Directory.Delete(Path.Combine(TempFolder, "tools"), true);
+					} catch (IOException) {
+					} catch (UnauthorizedAccessException) {
+					}
+
+					CheckCancelled();
+					form.CompleteItem();
+
+					if (settingsForm.VerifyWithHashes) {
+						form.SetProgressText("Verifying Jedi Knight Unofficial Patch...");
+
+						await VerifyHash(path, Settings.Hashes.JkUnofficialPatch);
+					}
+					CheckCancelled();
+					form.CompleteItem();
+				} else {
+					form.CompleteItem();
+					form.CompleteItem();
+					form.CompleteItem();
+					form.CompleteItem();
 				}
+			} else {
+				form.CompleteItem();
+				form.CompleteItem();
+				form.CompleteItem();
+				form.CompleteItem();
+				form.CompleteItem();
+				form.CompleteItem();
+				form.CompleteItem();
+				form.CompleteItem();
 			}
 
-			string dest = Path.Combine(gamePath, "JK-Extension.dll");
-			if (File.Exists(dest)) {
-				try {
-					File.Delete(dest);
-				} catch (IOException) {
-				} catch (UnauthorizedAccessException) {
-				}
-			}
+			if (settingsForm.OutputIsJkGameFolder) {
+				form.SetProgressText("Installing support files to game folder...");
 
-			await Task.Run(() => File.Move(Path.Combine(WorkingDir, "JK-Extension.dll"), dest));
-			CheckCancelled();
-
-			string patchPath = Path.Combine(gamePath, "Patches");
-			if (!Directory.Exists(patchPath)) {
-				Directory.CreateDirectory(patchPath);
-			}
-
-			foreach (string file in new[] { "jk.1.01.exe", "jk.1.0.exe", "jk.Unofficial.Patch.2008.01.16.exe" }) {
-				dest = Path.Combine(patchPath, file);
+				string dest = Path.Combine(destFolder, @"..\JK-Extension.dll");
 				if (File.Exists(dest)) {
 					try {
 						File.Delete(dest);
 					} catch (IOException) {
-						continue;
 					} catch (UnauthorizedAccessException) {
-						continue;
 					}
 				}
 
-				await Task.Run(() => File.Move(Path.Combine(WorkingDir, file), dest));
+				await Task.Run(() => File.Move(Path.Combine(TempFolder, "JK-Extension.dll"), dest));
+
 				CheckCancelled();
-			}
+				form.CompleteItem();
 
-			form.CompleteItem();
+				path = Path.Combine(destFolder, @"..\JediKnight.exe");
+				if (await VerifyHash(path, Settings.Hashes.JkSteam, false)) {
+					CheckCancelled();
 
-			path = Path.Combine(gamePath, "JediKnight.exe");
-			if (await VerifyHash(path, Resources.JK_Steam_hash, false)) {
-				CheckCancelled();
+					form.SetProgressText("Backing up Jedi Knight Steam game executable...");
 
-				form.SetProgressText("Backing up Jedi Knight Steam game executable...");
-
-				dest = Path.Combine(patchPath, "jk.Steam.exe");
-				await Task.Run(() => File.Copy(path, dest, true));
+					dest = Path.Combine(destFolder, "jk.Steam.exe");
+					await Task.Run(() => File.Copy(path, dest, true));
+				} else {
+					form.SetProgressText("Jedi Knight executable doesn't appear to be Steam version, skipping backup.");
+				}
 			} else {
-				form.SetProgressText("Jedi Knight executable doesn't appear to be Steam version, skipping backup.");
+				form.CompleteItem();
 			}
-			CheckCancelled();
 
 			form.CompleteItem();
 
 			form.DisableCancel();
-			form.SetProgressText("Cleaning up...");
 
-			await Task.Run(() => Directory.Delete(WorkingDir, true));
+			if (destFolder != TempFolder) {
+				form.SetProgressText("Cleaning up...");
+
+				await Task.Run(() => Directory.Delete(TempFolder, true));
+			}
 
 			form.CompleteItem();
 
-			Process.Start(patchPath);
+			Process.Start(destFolder);
 			Application.Exit();
 		}
 
@@ -264,7 +288,7 @@ namespace JKVersions {
 		}
 
 		private static async Task ExtractResourceTools() {
-			string path = Path.Combine(WorkingDir, "tools");
+			string path = Path.Combine(TempFolder, "tools");
 			if (!Directory.Exists(path)) {
 				Directory.CreateDirectory(path);
 			}
@@ -278,7 +302,7 @@ namespace JKVersions {
 
 		private static async Task ExtractArchiveFiles(string archive, string[] files, string destination) {
 			Process process = Process.Start(new ProcessStartInfo() {
-				FileName = Path.Combine(WorkingDir, "tools", "7za.exe"),
+				FileName = Path.Combine(TempFolder, "tools", "7za.exe"),
 				Arguments = $"x \"{archive}\" \"{string.Join("\" \"", files)}\" -y -o\"{destination ?? "."}\"",
 				CreateNoWindow = true,
 				UseShellExecute = false
@@ -335,7 +359,7 @@ namespace JKVersions {
 		}
 
 		private static readonly SHA1Managed sha1 = new SHA1Managed();
-		private static async Task<bool> VerifyHash(string filename, byte[] desiredHash, bool fatalFailure = true) {
+		private static async Task<bool> VerifyHash(string filename, string hash, bool fatalFailure = true) {
 			byte[] actualHash;
 			byte[] buffer;
 			using (FileStream file = new FileStream(filename, FileMode.Open, FileAccess.Read, FileShare.Read)) {
@@ -345,12 +369,15 @@ namespace JKVersions {
 
 			CheckCancelled();
 
+			byte[] desiredHash = Enumerable.Range(0, hash.Length / 2)
+				.Select(x => Convert.ToByte(hash.Substring(x * 2, 2), 16))
+				.ToArray();
 			actualHash = sha1.ComputeHash(buffer);
 
 			if (!desiredHash.SequenceEqual(actualHash)) {
 				if (fatalFailure) {
 					MessageBox.Show(
-						"The file could not be verified successfully. You might try starting over again. If this keeps happening one of the downloads may not be functional. :(",
+						$"{filename} could not be verified successfully. You might try starting over again. If this keeps happening you may want to find a better download for this file.",
 						"JKVersions", MessageBoxButtons.OK, MessageBoxIcon.Error, MessageBoxDefaultButton.Button1);
 					form.Abort();
 				}
@@ -362,7 +389,7 @@ namespace JKVersions {
 
 		private static async Task PatchFile(string inputFile, string outputFile, string patchFile) {
 			ProcessStartInfo startInfo = new ProcessStartInfo() {
-				FileName = Path.Combine(WorkingDir, "bspatch.exe"),
+				FileName = Path.Combine(TempFolder, "bspatch.exe"),
 				Arguments = $"\"{inputFile}\" \"{outputFile}\" \"{patchFile}",
 				CreateNoWindow = true,
 				UseShellExecute = false
@@ -375,11 +402,9 @@ namespace JKVersions {
 			DeleteFile(patchFile);
 		}
 
-		private static string WorkingDir => Path.Combine(Path.GetTempPath(), "JKVersions");
-
-		private static void CreateWorkingDir() {
-			if (!Directory.Exists(WorkingDir)) {
-				Directory.CreateDirectory(WorkingDir);
+		private static void CreateTempFolder() {
+			if (!Directory.Exists(TempFolder)) {
+				Directory.CreateDirectory(TempFolder);
 			}
 		}
 
@@ -392,7 +417,7 @@ namespace JKVersions {
 		}
 
 		private static void Cleanup() {
-			string path = WorkingDir;
+			string path = TempFolder;
 			if (Directory.Exists(path)) {
 				try {
 					Directory.Delete(path, true);
@@ -438,5 +463,31 @@ namespace JKVersions {
 		}
 
 		private static string ExceptionToString(this Exception ex) => $"{ex.Source}: {ex.GetType().FullName}: {ex.Message}{Environment.NewLine}{ex.StackTrace}";
+
+		public static string JkPath {
+			get {
+				RegistryKey key = null;
+				try {
+					key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\LucasArts Entertainment Company\jediknight\1.0");
+				} catch (SecurityException) {
+				}
+
+				if (key == null) {
+					try {
+						key = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\WOW6432Node\LucasArts Entertainment Company\jediknight\1.0");
+					} catch (SecurityException) {
+					}
+				}
+
+				if (key != null) {
+					using (key) {
+						return key.GetValue("install path", null) as string;
+					}
+				}
+				return null;
+			}
+		}
+
+		public static string TempFolder => Path.Combine(Path.GetTempPath(), "JKVersions");
 	}
 }
