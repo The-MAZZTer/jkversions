@@ -16,9 +16,9 @@ This project is a Visual Studio 2019 project, for .NET Framework 4.6.2 (.NET 5 W
 
 New for version 3.0:
 
-- ,NET Framework version dependancy bumped to 4.6.2 for .NET Standard 2.0 compatibility
+- .NET Framework version dependancy bumped to 4.6.2 for .NET Standard 2.0 compatibility
 - Added setitngs file for customizing download URLs and hashes
-- Added form UII for customizing download URLs, which patches get applied, and where the resulting files get placed.
+- Added form UI for customizing download URLs, which patches get applied, and where the resulting files get placed.
 
 New for version 2.0:
 
